@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/madelyn/Desktop/codingtest/codingtest.csproj": {}
+    "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/codingtest.csproj": {}
   },
   "projects": {
-    "/home/madelyn/Desktop/codingtest/codingtest.csproj": {
+    "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/codingtest.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/madelyn/Desktop/codingtest/codingtest.csproj",
+        "projectUniqueName": "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/codingtest.csproj",
         "projectName": "codingtest",
-        "projectPath": "/home/madelyn/Desktop/codingtest/codingtest.csproj",
+        "projectPath": "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/codingtest.csproj",
         "packagesPath": "/home/madelyn/.nuget/packages/",
-        "outputPath": "/home/madelyn/Desktop/codingtest/obj/",
+        "outputPath": "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/madelyn/.nuget/NuGet/NuGet.Config"

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "em6/lbMyu3LVNMtBwxDWJejvHc35oEo6XCscbifEwEWVohULEeXeGPOQaUxSmraSzms8XgTu/8lC6KP3Aqv9Ug==",
+  "dgSpecHash": "hXLWwiS8JhXiS624Sh0H0vBkeujAf3addFN9fSzkG5kAFz5gndi6HffysPvZP0C/EMP3cG4wWnlioND7EApNYQ==",
   "success": true,
-  "projectFilePath": "/home/madelyn/Desktop/codingtest/codingtest.csproj",
+  "projectFilePath": "/home/madelyn/Desktop/codingtest/codingtestrepo/madlab-coding-test/codingtest.csproj",
   "expectedPackageFiles": [
     "/home/madelyn/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.8/microsoft.aspnetcore.app.ref.8.0.8.nupkg.sha512"
   ],

@@ -84,8 +84,14 @@ class Program
     static async Task Main(string[] args)
     {
         // behaviour values
+        // control how the input for the requested tasks is modified. Ideally would be somewhere suitable, eg asking the user, but document specifically requests these values
         string defaultPage = "http://gutendex.com/books/?page=1";
-        int SearchResultCount = 5;
+        int ageFilterThreshold = 200;
+        string searchTitle = "Short Stories";
+        string searchAuthor = "Dostoyevsky, Fyodor";
+
+        // how many book results should be printed to the terminal before the remaining ones are truncated
+        int searchResultCount = 5;
 
         // initialise references
         using HttpClient client = new HttpClient();
@@ -102,144 +108,59 @@ class Program
             Console.WriteLine("\nSelect an option to run a requested test:\n [1] Fetch from API\n [2] Arrays (Sort by ID)\n [3] Strings (Modify subjects to be uppercase)\n [4] Dates (Filtering Authors older than 200 years)\n [5] Find An Entry (Search from page 1 onwards until finding Short Stories by Dostoyevsky, Fyodor)\n [6] Exit");
             switch (Console.ReadLine()) // should separate out case handling into function calls for readability and maintainability
             {
+                // cases 1 through 4 have boilerplate for fetching and validating the data. <--- maybe replace with macro? The function for case 5 will fetch and validate date itself
                 case "1": // fetch page 1 from api
                 {
                     // call http request wrapper function, wait until data is recieved
                     results = await CreateSearchResult(client, "http://gutendex.com/books/?page=1"); // explicitly page 1, not default page
-                    if (results.Populated) // check if results are valid. No need to display errors, this is done in the wrapper function
+                    if (results.Populated)
                     {
-                        // output recieved data, select number of displayed entries with second parameter
-                        PrintSearchResult(results, SearchResultCount);
-                    }
+                        Task1(results, searchResultCount);
+                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
                     break;
                 }
                 case "2": // sort by ID, ascending with array.sort
                 {
-                    // check data validity, make request if no data is saved
-                    if (!results.Populated) // check if there is already a saved search result, if so, skip requesting it
+                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
+                    if (results.Populated) // check if recieved result is valid
                     {
-                        results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                        if (results.Populated == false) // check if results are valid. No need to display errors, this is done in the wrapper function
-                        {
-                            break; // break out from switch if results recieved are invalid
-                        }
-                    }
-
-                    //sort array
-                    Array.Sort<BookResult>(results.results, (x,y) => x.id.CompareTo(y.id)); // user defined struct has no default sorting method, so sort by property with lambda expression
-                    PrintSearchResult(results, SearchResultCount);
+                        results = Task2(results); // pass recieved results into sorting function and save over old array
+                        PrintSearchResult(results, searchResultCount); // print sorted array
+                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
                     break;
                 }
                 case "3": // using array.map modify each item's subjects to be uppercase
                 {
-                    // check data validity, make request if no data is saved
-                    if (!results.Populated) // check if there is already a saved search result, if so, skip requesting it
+                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
+                    if (results.Populated) // check if recieved result is valid
                     {
-                        results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                        if (results.Populated == false) // check if results are valid. No need to display errors, this is done in the wrapper function
-                        {
-                            break; // break out from switch if results recieved are invalid
-                        }
-                    }
-
-                    // modify array (array.map is not in c#, linq Select() is the equivalent)
-                    // due to layout of data structs, nested Select() needed. Iterating with a nested loop might be preferred
-                    // outer Select()
-                    results.results = results.results.Select(a =>
-                    {
-                        // inner Select(), set each value in subject array to be upper case
-                        a.subjects = a.subjects.Select(b => b.ToUpper()).ToArray();
-                        return a;
-                    } ).ToArray();
-
-                    // print modified array output
-                    PrintSearchResult(results, SearchResultCount);
+                        results = Task3(results); // pass recieved results into modifying function and save over old array
+                        PrintSearchResult(results, searchResultCount); // print sorted array
+                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
                     break;
                 }
                 case "4": // using array.filter remove all entries whose author didn't exist within the last 200 years
                 {
-                    // check data validity, make request if no data is saved
-                    if (!results.Populated) // check if there is already a saved search result, if so, skip requesting it
+                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
+                    if (results.Populated) // check if recieved result is valid
                     {
-                        results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                        if (results.Populated == false) // check if results are valid. No need to display errors, this is done in the wrapper function
-                        {
-                            break; // break out from switch if results recieved are invalid
-                        }
-                    }
-
-                    // modify array (array.filter is not in c#, Array.FindAll is the equivalent)
-                    // instead of array.filter(function), a lambda expression is used to do the comparison and discard items that do not match
-                    results.results = Array.FindAll(results.results, bookResult => 
-                    {
-                        foreach (Person author in bookResult.authors) // loop through authors array in case multiple are listed, only one must pass the check
-                        {
-                            // initialise local variables
-                            bool authorDateValid = false;
-                            int authorDate = 0;
-                            // find value to use in comparison. Check birth and death years separately in case one field is null
-                            if (author.birth_year != null) // check if a valid birth year is in the data
-                            {
-                                authorDate = (int)author.birth_year;
-                                authorDateValid = true;
-                            }
-                            if (author.death_year != null) // check if a valid death year is in the data, done second as will always be greater than birth year
-                            {
-                                authorDate = (int)author.death_year;
-                                authorDateValid = true;
-                            }
-                            // run comparison. If no valid birth or death date was found, skip and assume false
-                            if (authorDateValid && (DateTime.Now.Year - authorDate) < 200)
-                            {
-                                return true; // if this author passes the check, return early, no need to check the remaining authors in the array
-                            }
-                        }
-                        return false; // if no authors pass the check, return false to discard this book from the list
-                    });
-
-                    // print modified array output
-                    PrintSearchResult(results, SearchResultCount);
+                        results = Task4(results, ageFilterThreshold); // pass recieved results into modifying function and save over old array
+                        PrintSearchResult(results, searchResultCount); // print sorted array
+                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
                     break;
                 }
                 case "5": // iterate through the data until finding "Short Stories" by "Dostoyevsky, Theodor". If it is not on the page, go to the next
-                {
-                    // data being searched for, ideally would be defined elsewhere, ie by user input, but test specifically requests these values
-                    string searchTitle = "Short Stories";
-                    string searchAuthor = "Dostoyevsky, Fyodor";
-                    // call http request wrapper function, wait until data is recieved
-                    results = await CreateSearchResult(client, "http://gutendex.com/books/?page=1"); // explicitly page 1, not default page
-                    bool searchSuccessful = false; // search success flag for breaking out when searched data is found
-                    while (!searchSuccessful) // search loop
+                {         // result is actually in page 11, not 12 as the document states
+                    // call async search task. Multiple searches may be needed, so cannot be done and validated before executing function for the task
+                    BookResult searchOutput = await Task5(client, searchTitle, searchAuthor);
+                    if (searchOutput.title == searchTitle) // if search succeeded, result title should match searched for title
                     {
-                        if (results.Populated == false) // check if request results are valid
-                        {
-                            Console.WriteLine("Search Failed: Request Returned Invalid Data");
-                            break;
-                        }
-                        foreach (BookResult book in results.results) // iterate through request results to check is an entry matches the searched title and author
-                        {
-                            // check if this book matches the title and author being searched for
-                            // title is an easy comparison, being an accessible field in the outermost SearchResult struct
-                            // author name check requires array manipulation, convert the Person array in the book's authors field into an array of the author names, then check if the new array contains the searched for author
-                            if (book.title == searchTitle && book.authors.Select(person => person.name).ToArray().Contains(searchAuthor))
-                            {
-                                Console.WriteLine("Search Successful");
-                                PrintBookResult(book); // output full entry for the searched book
-                                searchSuccessful = true; // set flag for breaking out of search loop
-                                break; // quit iterating through the request results early, no need to keep checking
-                            }
-                        }
-                        if (results.next == null) // check for last page
-                        {
-                            Console.WriteLine("Search Failed: " + searchTitle + " by " + searchAuthor + " was not found in the database.");
-                            break;
-                        }
-                        if (!searchSuccessful) // if the searched for book has not been found, and a valid next page exists, request the next page data, and continue
-                        {
-                            Console.WriteLine("Not found on current page, searching " + results.next);
-                            results = await CreateSearchResult(client, results.next); // call http request wrapper function. Do not need to check validity, this is done in the next loop iteration
-                        }
-                    }                   
+                        Console.WriteLine("Search Successful!");
+                        PrintBookResult(searchOutput);
+                    } else // failed search will return an empty BookResult struct, so title will not match
+                    {
+                        Console.WriteLine("Search was unable to find " + searchTitle + " by " + searchAuthor);
+                    }
                     break;
                 }
                 case "6": // exit program
@@ -262,7 +183,106 @@ class Program
     }
 
 // =======================================================================================================
-// define functions
+// define task functions
+
+    static void Task1(SearchResult results, int displayedResultsCount) // fetch page 1 from api
+    {
+        // display the recieved results
+        PrintSearchResult(results, displayedResultsCount);
+    }
+
+    static SearchResult Task2(SearchResult searchResultToSort) // sort by ID, ascending with array.sort
+    {
+        // user defined struct has no default sorting method, so sort by property with lambda expression
+        Array.Sort<BookResult>(searchResultToSort.results, (x,y) => x.id.CompareTo(y.id));
+        // return sorted array
+        return searchResultToSort;
+    }
+
+    static SearchResult Task3(SearchResult searchResultToModify) // using array.map modify each item's subjects to be uppercase
+    {
+         // modify array (array.map is not in c#, linq Select() is the equivalent)
+         // due to layout of data structs, nested Select() needed. Iterating with a nested loop might be preferred
+         // outer Select()
+        searchResultToModify.results = searchResultToModify.results.Select(a =>
+        {
+            // inner Select(), set each value in subject array to be upper case
+            a.subjects = a.subjects.Select(b => b.ToUpper()).ToArray();
+            return a;
+        } ).ToArray();
+        // return modified array
+        return searchResultToModify;    
+    }
+
+    static SearchResult Task4(SearchResult searchResultToFilter, int ageToFilter) // using array.filter remove all entries whose author didn't exist within the last 200 years
+    {
+        // modify array (array.filter is not in c#, Array.FindAll is the equivalent)
+        // instead of array.filter(function), Array.FindAll and a lambda expression is used to do the comparison and discard items that do not match
+        searchResultToFilter.results = Array.FindAll(searchResultToFilter.results, bookResult => 
+        {
+            foreach (Person author in bookResult.authors) // loop through authors array in case multiple are listed, only one must pass the check
+            {
+                // initialise local variables
+                bool authorDateValid = false;
+                int authorDate = 0;
+                // find value to use in comparison. Check birth and death years separately in case one field is null
+                if (author.birth_year != null) // check if a valid birth year is in the data
+                {
+                    authorDate = (int)author.birth_year;
+                    authorDateValid = true;
+                }
+                if (author.death_year != null) // check if a valid death year is in the data, done second as will always be greater than birth year
+                {
+                    authorDate = (int)author.death_year;
+                    authorDateValid = true;
+                }
+                // run comparison. If no valid birth or death date was found, skip and assume false
+                if (authorDateValid && (DateTime.Now.Year - authorDate) < ageToFilter)
+                {
+                    return true; // if this author passes the check, return early, no need to check the remaining authors in the array
+                }
+            }
+            return false; // if no authors pass the check, return false to discard this book from the list
+        });
+        // return filtered array
+        return searchResultToFilter;
+    }
+
+    static async Task<BookResult> Task5(HttpClient client, string searchedTitle, string searchedAuthor) // iterate through the data until finding "Short Stories" by "Dostoyevsky, Theodor". If it is not on the page, go to the next
+    {
+        // call http request wrapper function, wait until data is recieved
+        SearchResult results = await CreateSearchResult(client, "http://gutendex.com/books/?page=1"); // explicitly page 1, not default page
+        while (true) // search loop
+        {
+            if (results.Populated == false) // check if request results are valid
+            {
+                Console.WriteLine("Search Failed: Request Returned Invalid Data");
+                return new BookResult(); // return empty book result 
+            }
+            foreach (BookResult book in results.results) // iterate through request results to check is an entry matches the searched title and author
+            {
+                // check if this book matches the title and author being searched for
+                // title is an easy comparison, being an accessible field in the outermost SearchResult struct
+                // author name check requires array manipulation, convert the Person array in the book's authors field into an array of the author names, then check if the new array contains the searched for author
+                if (book.title == searchedTitle && book.authors.Select(person => person.name).ToArray().Contains(searchedAuthor))
+                {
+                    return book;
+                }
+            }
+            if (results.next == null) // check for last page
+            {
+                return new BookResult(); // return empty book result            
+            }
+            else // if the searched for book has not been found, and a valid next page exists, request the next page data, and continue
+            {
+                Console.WriteLine("Not found on current page, searching " + results.next);
+                results = await CreateSearchResult(client, results.next); // call http request wrapper function. Do not need to check validity, this is done in the next loop iteration
+            }
+        }                   
+    }
+
+// =======================================================================================================
+// define program functions
 
 // function that handles the http request, will return the response as a string, and flag for whether or not the request was successful
     static async Task<RequestResponse> MakeGetRequest(HttpClient client, string url)
