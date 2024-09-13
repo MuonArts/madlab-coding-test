@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "em6/lbMyu3LVNMtBwxDWJejvHc35oEo6XCscbifEwEWVohULEeXeGPOQaUxSmraSzms8XgTu/8lC6KP3Aqv9Ug==",
+  "success": true,
+  "projectFilePath": "/home/madelyn/Desktop/codingtest/codingtest.csproj",
+  "expectedPackageFiles": [
+    "/home/madelyn/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.8/microsoft.aspnetcore.app.ref.8.0.8.nupkg.sha512"
+  ],
+  "logs": []
+}
