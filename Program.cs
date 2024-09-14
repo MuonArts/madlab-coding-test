@@ -34,9 +34,9 @@ struct RequestResponse
 struct SearchResult
 {
     public int count {get; set;}
-    public string next {get; set;}
-    public string previous {get; set;}
-    public BookResult[] results {get; set;}
+    public string? next {get; set;} // set as nullable, api can return next as null, used in search last page check
+    public string? previous {get; set;} // set as nullable, api can return previous as null
+    public BookResult[] results {get; set;} = Array.Empty<BookResult>(); // set as empty array by default
     public Boolean Populated = false;
 
     // constructor. No required values, all data except the populated flag will be filled by the json parser. Defaults to an unpopulated failed request result
@@ -102,62 +102,83 @@ class Program
 
         // menu loop
         bool inMenu = true;
+        string? userInput = "";
         while (inMenu)
         {
             // print menu to terminal. Options separated by newline (/n) and indented by 3 spaces
             Console.WriteLine("\nSelect an option to run a requested test:\n [1] Fetch from API\n [2] Arrays (Sort by ID)\n [3] Strings (Modify subjects to be uppercase)\n [4] Dates (Filtering Authors older than 200 years)\n [5] Find An Entry (Search from page 1 onwards until finding Short Stories by Dostoyevsky, Fyodor)\n [6] Exit");
-            switch (Console.ReadLine()) // should separate out case handling into function calls for readability and maintainability
+            userInput = Console.ReadLine(); // read user input
+            // first switch statement - request and validate data beforehand if possible
+            switch (userInput)
             {
-                // cases 1 through 4 have boilerplate for fetching and validating the data. <--- maybe replace with macro? The function for case 5 will fetch and validate date itself
+                case "1": // Cases 1 through 4 require only one api call to be made
+                case "2": // this can be done and validated beforehand
+                case "3": // if the returned data is invalid, flag the program to skip processing the data and display an error
+                case "4": // api call handled here to avoid reused code in cases 1 through 4
+                {
+                    // create local variable for which page to request from the api
+                    string pageToRequest = defaultPage;
+                    if (userInput == "1") // check for case 1, first task explicitly requests page 1
+                    {
+                        pageToRequest = "http://gutendex.com/books/?page=1";
+                    }
+                    // call http request wrapper function, wait until data is recieved
+                    results = await CreateSearchResult(client, pageToRequest);
+                    if (results.Populated == false)
+                    {
+                        Console.WriteLine("Recieved data was invalid, please try again"); // return error message, more detailed error info also printed by wrapper function
+                        userInput = null; // null out user input to fall through next switch statement without processing anything
+                    }
+                    break;
+                }
+                case "5": // just pass through, no data request needed
+                case "6": // search (case 5) will request its own data, exiting the program (case 6) requires no data
+                {
+                    break;
+                }
+                default: // default case, no valid input entered
+                {
+                    Console.WriteLine("Please choose a valid option"); // print error message
+                    userInput = null; // null out user input to fall through next switch statement without processing anything
+                    break;
+                }
+            }
+            // second switch statement - run the requested operation
+            switch (userInput) // should separate out case handling into function calls for readability and maintainability
+            {
                 case "1": // fetch page 1 from api
                 {
-                    // call http request wrapper function, wait until data is recieved
-                    results = await CreateSearchResult(client, "http://gutendex.com/books/?page=1"); // explicitly page 1, not default page
-                    if (results.Populated)
-                    {
-                        Task1(results, searchResultCount);
-                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
+                    Task1(results, searchResultCount);
                     break;
                 }
                 case "2": // sort by ID, ascending with array.sort
                 {
-                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                    if (results.Populated) // check if recieved result is valid
-                    {
-                        results = Task2(results); // pass recieved results into sorting function and save over old array
-                        PrintSearchResult(results, searchResultCount); // print sorted array
-                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
+                    results = Task2(results); // pass recieved results into sorting function and save over old array
+                    PrintSearchResult(results, searchResultCount); // print sorted array
                     break;
                 }
                 case "3": // using array.map modify each item's subjects to be uppercase
                 {
-                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                    if (results.Populated) // check if recieved result is valid
-                    {
-                        results = Task3(results); // pass recieved results into modifying function and save over old array
-                        PrintSearchResult(results, searchResultCount); // print sorted array
-                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
+                    results = Task3(results); // pass recieved results into modifying function and save over old array
+                    PrintSearchResult(results, searchResultCount); // print sorted array
                     break;
                 }
                 case "4": // using array.filter remove all entries whose author didn't exist within the last 200 years
                 {
-                    results = await CreateSearchResult(client, defaultPage); // call http request wrapper function, wait until data is recieved
-                    if (results.Populated) // check if recieved result is valid
-                    {
-                        results = Task4(results, ageFilterThreshold); // pass recieved results into modifying function and save over old array
-                        PrintSearchResult(results, searchResultCount); // print sorted array
-                    } else { Console.WriteLine("Recieved data was invalid, please try again"); } // output error
+                    results = Task4(results, ageFilterThreshold); // pass recieved results into modifying function and save over old array
+                    PrintSearchResult(results, searchResultCount); // print sorted array
                     break;
                 }
                 case "5": // iterate through the data until finding "Short Stories" by "Dostoyevsky, Theodor". If it is not on the page, go to the next
                 {         // result is actually in page 11, not 12 as the document states
-                    // call async search task. Multiple searches may be needed, so cannot be done and validated before executing function for the task
+                          // call async search task. Multiple searches may be needed, so cannot be done and validated before executing function for the task
                     BookResult searchOutput = await Task5(client, searchTitle, searchAuthor);
                     if (searchOutput.title == searchTitle) // if search succeeded, result title should match searched for title
                     {
                         Console.WriteLine("Search Successful!");
                         PrintBookResult(searchOutput);
-                    } else // failed search will return an empty BookResult struct, so title will not match
+                    } 
+                    else // failed search will return an empty BookResult struct, so title will not match
                     {
                         Console.WriteLine("Search was unable to find " + searchTitle + " by " + searchAuthor);
                     }
@@ -172,9 +193,8 @@ class Program
                 //   (add extra cases for more actions here)
                 //
                 //
-                default: // if no case is met, ie an invalid input was given, display error and ask for input again
-                {
-                    Console.WriteLine("Please choose a valid option");
+                default: // if no case is met, ie an invalid input was given or no data was recieved from api, break and try again.
+                {        // Previous switch statement has already displayed the relevant error message
                     break;
                 }
             }   
@@ -412,7 +432,7 @@ class Program
                 tempString += "unknown-";
             } else if (people[i].birth_year < 0) // check for negative numbers to display as BC to clean up formatting
             {
-                tempString += (Math.Abs((int)people[i].birth_year)) + "BC-"; // null already checked for before casting
+                tempString += Math.Abs((int)people[i].birth_year) + "BC-"; // null already checked for before casting, warning can be ignored
             } else
             {
                 tempString += people[i].birth_year + "-";
@@ -423,7 +443,7 @@ class Program
                 tempString += "unknown)";
             } else if (people[i].death_year < 0) // check for negative numbers to display as BC to clean up formatting
             {
-                tempString += (Math.Abs((int)people[i].death_year)) + "BC)"; // null already checked for before casting
+                tempString += Math.Abs((int)people[i].death_year) + "BC)"; // null already checked for before casting, warning can be ignored
             } else
             {
                 tempString += people[i].death_year + ")";
